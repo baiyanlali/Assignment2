@@ -1,6 +1,7 @@
 from spoc_delivery_scheduling_evaluate_code import trappist_schedule
 import random
 import numpy as np
+import tqdm
 
 N_STATIONS = 12
 N_ASTEROIDS = 340
@@ -9,6 +10,7 @@ TIME_START = 0
 TIME_END = 80
 
 DAY_INTERVAL = 1
+ITERATION_TIMES = 100
 
 
 # TODO: Design and implement your EA
@@ -126,13 +128,12 @@ class myEA():
                 curr_oppo = curr_asteroids[j]
                 for k in range(len(curr_oppo)):
                     oppo = curr_oppo[k]
-                    asteroids[i].stations[j].opportunities[k+1] = Opportunity(oppo[0], oppo[1], oppo[2], oppo[3])
+                    asteroids[i].stations[j].opportunities[k + 1] = Opportunity(oppo[0], oppo[1], oppo[2], oppo[3])
         return asteroids
 
     @staticmethod
-    def get_available_assignments(asteroids: dict[int, Asteroids], window: list[float], window_index: list[int]) -> \
-            dict[
-                int, list[list[int, int]]]:
+    def get_available_assignments(asteroids: dict[int, Asteroids], window: list[float],
+                                  window_index: np.ndarray[int]) -> dict[int, list[list[int, int]]]:
         """
         @return {asteroid_id: [[station1, o1], [station1, o2], [station2, o4]]}
         @param asteroids: {asteroid_id: Asteroid}
@@ -160,7 +161,8 @@ class myEA():
         return availableAssignments
 
     @staticmethod
-    def random_asteroids_assignment(asteroids: dict[int, Asteroids], window: list[float], window_index: list[int]) -> \
+    def random_asteroids_assignment(asteroids: dict[int, Asteroids], window: list[float],
+                                    window_index: np.ndarray[int]) -> \
             list[list[int, int, int]]:
         """
         @return [[asteroid id, station id, opportunity id], [asteroid id, station id, opportunity id] , ... ]
@@ -171,7 +173,7 @@ class myEA():
         assignments = []
         count = 0
         for i in available_assignments:  # i-th asteroids
-            assignment = available_assignments[i]
+            assignment: list[list[int, int]] = available_assignments[i]
             if len(assignment) == 0:
                 assignments.append([i, 0, 0])
                 count = count + 1
@@ -179,8 +181,49 @@ class myEA():
                 station, oppo = random.choice(assignment)
                 # assignments.append([i, 0, 0])
                 assignments.append([i, station, oppo])
-        print(f"Count: {count}")
+        # print(f"Count: {count}")
         return assignments
+
+    @staticmethod
+    def fill_min_asteroids_assignment(asteroids: dict[int, Asteroids], window: list[float],
+                                      window_index: np.ndarray[int]) -> \
+            list[list[int, int, int]]:
+        """
+        @return [[asteroid id, station id, opportunity id], [asteroid id, station id, opportunity id] , ... ]
+        """
+
+        available_assignments = myEA.get_available_assignments(asteroids, window, window_index)
+
+        assignments = []
+
+        station_mass = np.zeros((N_STATIONS, 3))
+
+        count = 0
+
+        for i in available_assignments:  # i-th asteroids
+            assignment: list[list[int, int]] = available_assignments[i]
+            if len(assignment) == 0:
+                assignments.append([i, 0, 0])
+                count = count + 1
+            else:
+                min_mass_idx = np.argsort()
+                min_mass_station = min_mass_idx // 3
+                for station, oppo in assignment:
+
+                station, oppo = random.choice(assignment)
+                # assignments.append([i, 0, 0])
+                assignments.append([i, station, oppo])
+        # print(f"Count: {count}")
+        return assignments
+
+    @staticmethod
+    def mutateActiveWindowsIndex(x: np.ndarray):
+        def swap(xx: np.ndarray):
+            i = random.choices(range(len(xx)), k=2)
+            xx[i[0]], xx[i[1]] = xx[i[1]], xx[i[0]]
+            return xx
+
+        return swap(x)
 
     @staticmethod
     def main():
@@ -192,32 +235,41 @@ class myEA():
 
         ts: trappist_schedule = trappist_schedule()
 
-        # n_stations = ts.n_stations
-        # n_asteroids = ts.n_asteroids
-        # bounds = ts.get_bounds
-        # gap = ts.station_gap
-        db = ts.db
+        solution = []
 
         active_windows_index = np.arange(N_STATIONS)
 
         np.random.shuffle(active_windows_index)
 
-        print(active_windows_index)
+        best_fitness = 0
 
-        windows = myEA.uniform_window()
+        best_solution = None
 
-        active_windows = myEA.window_encoding(windows, active_windows_index)
+        for it in tqdm.tqdm(range(ITERATION_TIMES)):
 
-        print(active_windows)
+            db = ts.db
 
-        asteroids = myEA.decode_asteroids(db)
+            active_windows_index = myEA.mutateActiveWindowsIndex(active_windows_index)
 
-        # assignment_pair = myEA.random_asteroids_assignment(asteroids, active_windows, active_windows_index)
-        assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_windows_index)
+            windows = myEA.uniform_window()
 
-        solution = myEA.encode(active_windows, np.array(assignment_pair))
+            active_windows = myEA.window_encoding(windows, active_windows_index)
 
-        return solution
+            asteroids = myEA.decode_asteroids(db)
+
+            # assignment_pair = myEA.random_asteroids_assignment(asteroids, active_windows, active_windows_index)
+            # assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_windows_index)
+            assignment_pair = myEA.fill_min_asteroids_assignment(asteroids, windows, active_windows_index)
+
+            solution = myEA.encode(active_windows, np.array(assignment_pair))
+
+            fitness, _, _, _, _ = ts.fitness(solution)
+            print(f"fitness: {fitness}")
+            if fitness < best_fitness:
+                best_fitness = fitness
+                best_solution = solution
+
+        return best_solution
 
 
 if __name__ == "__main__":

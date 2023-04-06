@@ -29,17 +29,17 @@ class trappist_schedule:
     """
 
     def __init__(
-        self,
-        path=os.path.join(".", "data", "spoc", "scheduling", "candidates.txt"),
-        n_stations=12,
-        start_time=0.0,
-        end_time=80.0,
-        station_gap=1.0,
-        materials=(
-            "Material A",
-            "Material B",
-            "Material C",
-        ),
+            self,
+            path=os.path.join(".", "data", "spoc", "scheduling", "candidates.txt"),
+            n_stations=12,
+            start_time=0.0,
+            end_time=80.0,
+            station_gap=1.0,
+            materials=(
+                    "Material A",
+                    "Material B",
+                    "Material C",
+            ),
     ):
         # Database of asteroid-to-station visit opportunities,
         self.db = self._load(path)
@@ -128,8 +128,8 @@ class trappist_schedule:
         return (lb, ub)
 
     def _load(
-        self,
-        path,
+            self,
+            path,
     ):
         """
 
@@ -159,8 +159,8 @@ class trappist_schedule:
         return db
 
     def _flatten(
-        self,
-        db,
+            self,
+            db,
     ):
 
         """
@@ -187,11 +187,11 @@ class trappist_schedule:
         return (flat_db, max_opps - 1)
 
     def _plot(
-        self,
-        masses,
-        schedule,
-        ax=None,
-        path=None,
+            self,
+            masses,
+            schedule,
+            ax=None,
+            path=None,
     ):
         """
         Plot the total material masses at each station and
@@ -334,12 +334,12 @@ class trappist_schedule:
         return ax
 
     def _fitness_impl(
-        self,
-        x,
-        logging=False,
-        plotting=False,
-        ax=None,
-        path=None,
+            self,
+            x,
+            logging=False,
+            plotting=False,
+            ax=None,
+            path=None,
     ):
         """
         Computes the constraints and the fitness of the provided chromosome.
@@ -383,8 +383,6 @@ class trappist_schedule:
 
         """
 
-        all_violations = 0
-
         eq_constraints = []
         ineq_constraints = []
 
@@ -393,17 +391,17 @@ class trappist_schedule:
 
         # Extract a set of tuples of all the selections as tuples
         asteroid_ids = [int(a_id) for a_id in x[station_times_offset::3]]
-        station_ids = [int(s_id) for s_id in x[(station_times_offset + 1) :: 3]]
+        station_ids = [int(s_id) for s_id in x[(station_times_offset + 1):: 3]]
         assignments = [
-            int(assignment - 1) for assignment in x[(station_times_offset + 2) :: 3]
+            int(assignment - 1) for assignment in x[(station_times_offset + 2):: 3]
         ]
 
         triplets = tuple(zip(asteroid_ids, station_ids, assignments))
 
         # Extract the start and end times for all stations from the chromosome
         station_times = x[:station_times_offset]
-        station_start_times = station_times[0 : len(station_times) : 2]
-        station_end_times = station_times[1 : len(station_times) : 2]
+        station_start_times = station_times[0: len(station_times): 2]
+        station_end_times = station_times[1: len(station_times): 2]
 
         """
         1. Equality constraints.
@@ -416,7 +414,6 @@ class trappist_schedule:
         )
 
         eq_constraints.append(len(asteroid_id_violations))
-        all_violations += len(asteroid_id_violations)
 
         # ==[ 1.2. Check opportunities ]==
 
@@ -430,7 +427,6 @@ class trappist_schedule:
         ]
 
         eq_constraints.append(len(opportunity_id_violations))
-        all_violations += len(opportunity_id_violations)
 
         """
         2. Inequality constraints.
@@ -460,7 +456,6 @@ class trappist_schedule:
 
         gap_violations = np.array(self.station_gap - np.array(gaps, dtype=np.float32))
         ineq_constraints.append(gap_violations.max())
-        all_violations += np.count_nonzero(np.where(gap_violations > 0.0, 1, 0))
 
         # ==[ 2.2. Arrival times ]==
 
@@ -509,42 +504,36 @@ class trappist_schedule:
         # Find any violations (1s indicate a violation in either start time or end time)
         arrival_time_violations = np.where(arrival_time_violations > 0, 1, 0)
         ineq_constraints.append(arrival_time_violations.sum())
-        all_violations += arrival_time_violations.sum()
 
         """
         3. Fitness
         """
 
-        fitness = 0.0
-        if all_violations == 0:
+        # Compute the masses of all materials accumulated at each station
+        masses_per_station = {
+            s_id: np.array([0.0, 0.0, 0.0], dtype=np.float32)
+            for s_id in range(1, self.n_stations + 1)
+        }
 
-            # Compute the masses of all materials accumulated at each station
-            masses_per_station = {
-                s_id: np.array([0.0, 0.0, 0.0], dtype=np.float32)
-                for s_id in range(1, self.n_stations + 1)
-            }
+        for triplet in triplets:
+            # If the asteroid is assigned to a valid station and
+            # its arrival time is within bounds...
+            if triplet[1] > 0 and triplet in self.flat_db:
+                # Add the material masses to the stations
+                masses_per_station[triplet[1]] += np.array(
+                    self.flat_db[triplet][1:],
+                    dtype=np.float32,
+                )
 
-            for (triplet, violation) in zip(
-                triplets, arrival_time_violations.astype(bool).tolist()
-            ):
-                # If the asteroid is assigned to a valid station and
-                # its arrival time is within bounds...
-                if triplet[1] > 0 and not violation:
-                    # Add the material masses to the stations
-                    masses_per_station[triplet[1]] += np.array(
-                        self.flat_db[triplet][1:],
-                        dtype=np.float32,
-                    )
+        # Collect all the masses per station into a single 2D array that is easy to manipulate
+        masses = np.array(
+            [masses_per_station[s] for s in range(1, self.n_stations + 1)]
+        )
 
-            # Collect all the masses per station into a single 2D array that is easy to manipulate
-            masses = np.array(
-                [masses_per_station[s] for s in range(1, self.n_stations + 1)]
-            )
-
-            # Final fitness computation.
-            # The objective is to maximise the minimum mass
-            # of any material across all stations.
-            fitness = -masses.min()
+        # Final fitness computation.
+        # The objective is to maximise the minimum mass
+        # of any material across all stations.
+        fitness = -masses.min()
 
         if logging:
 
@@ -607,8 +596,8 @@ class trappist_schedule:
         return (fitness, eq_constraints, ineq_constraints, ax)
 
     def fitness(
-        self,
-        x,
+            self,
+            x,
     ):
         """
         A wrapper for the fitness function (called for evaluation only).
@@ -666,8 +655,8 @@ class trappist_schedule:
         return (fitness, *eq_constraints, *ineq_constraints)
 
     def pretty(
-        self,
-        x,
+            self,
+            x,
     ):
         """
         Fitness evaluation function with pretty printing.
@@ -679,10 +668,10 @@ class trappist_schedule:
         (_, _, _, ax) = self._fitness_impl(x, logging=True)
 
     def plot(
-        self,
-        x,
-        ax=None,
-        path=None,
+            self,
+            x,
+            ax=None,
+            path=None,
     ):
         """
         Plot the total material masses accumulated at each station
@@ -775,8 +764,8 @@ class trappist_schedule:
         return chromosome
 
     def convert_to_chromosome(
-        self,
-        x,
+            self,
+            x,
     ):
         """
         Creates a valid chromosome from an incomplete one.
@@ -818,5 +807,5 @@ class trappist_schedule:
 
         return np.concatenate((np.array(x[:24]), np.array(schedule)))
 
-
-udp = trappist_schedule()
+if __name__ == "__main__":
+    udp = trappist_schedule()
