@@ -19,7 +19,6 @@ class myEA():
         n_stations = ts.n_stations
         n_asteriods = ts.n_asteroids
         bounds = ts.get_bounds
-        print(bounds)
         gap = ts.station_gap
         db = ts.db
 
