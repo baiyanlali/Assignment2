@@ -336,7 +336,7 @@ class trappist_schedule:
     def _fitness_impl(
         self,
         x,
-        logging=False,
+        logging=True,
         plotting=False,
         ax=None,
         path=None,

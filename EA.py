@@ -200,11 +200,20 @@ class myEA():
 
         active_windows_index = np.arange(N_STATIONS)
 
-        active_windows = myEA.window_encoding(myEA.uniform_window(), active_windows_index)
+        np.random.shuffle(active_windows_index)
+
+        print(active_windows_index)
+
+        windows = myEA.uniform_window()
+
+        active_windows = myEA.window_encoding(windows, active_windows_index)
+
+        print(active_windows)
 
         asteroids = myEA.decode_asteroids(db)
 
-        assignment_pair = myEA.random_asteroids_assignment(asteroids, active_windows, active_windows_index)
+        # assignment_pair = myEA.random_asteroids_assignment(asteroids, active_windows, active_windows_index)
+        assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_windows_index)
 
         solution = myEA.encode(active_windows, np.array(assignment_pair))
 
