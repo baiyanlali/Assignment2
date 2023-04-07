@@ -206,19 +206,8 @@ class myEA():
                 assignments.append([i, 0, 0])
                 count = count + 1
             else:
-                min_mass_idxes: list[list[int, int, int]] = np.argsort(station_mass)
-                fm_station = 0 #fill min station
-                fm_oppo = 0 # fill min opportunity
-                min_mass_idx = 0
-                min_mass: list[float, float, float] = station_mass[min_mass_idxes[min_mass_idx, 0]]
-                for station, oppo in assignment:
-                    if min_mass > station_mass[min_mass_idxes[min_mass_idx, 0]]:
-                        min_mass = station_mass[min_mass_idxes[min_mass_idx, 0]]
-                        min_mass_idx = min_mass_idxes
-                    pass
-                station, oppo = random.choice(assignment)
-                # assignments.append([i, 0, 0])
-                assignments.append([i, station, oppo])
+                # find the min value of 
+                
         # print(f"Count: {count}")
         return assignments
 
