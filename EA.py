@@ -159,11 +159,13 @@ def find_index_in_window(reach_time: float, window: list[float]) -> int:
     # return -1
 
     index = bisect.bisect_left(window, reach_time)
-    if index % 2 == 1:
-        # in active window
-        return index//2
-    else:
-        return -1
+
+    return index//2 if index % 2 == 1 else -1
+
+    # if index % 2 == 1:
+    #     # in active window
+    #     return index//2
+    # return -1
 
 
 
@@ -275,7 +277,7 @@ class myEA():
             asteroid = asteroids[i]
             for j in asteroid.stations:
                 station = asteroid.stations[j]
-
+                
                 for k in station.opportunities:
                     oppo = station.opportunities[k]
                     reach_time = oppo.reachTime
