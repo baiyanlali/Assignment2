@@ -21,11 +21,12 @@ asteroids = {}
 
 
 class Individual:
-    def __init__(self, active_window_index, start_time) -> None:
+    def __init__(self, active_window_index, start_time, calculate_assignment=True) -> None:
         self.active_window_index: np.ndarray = np.copy(active_window_index)
         self.start_time: np.ndarray = np.copy(start_time)
-        windows = myEA.fill_window(start_time)
-        self.assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_window_index)
+        if calculate_assignment:
+            windows = myEA.fill_window(start_time)
+            self.assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_window_index)
         pass
 
     def __repr__(self):
@@ -87,7 +88,7 @@ def crossover(p1: Individual, p2: Individual) -> Individual:
 
     window_index_child = crossover_simple_recombination(window_index1, window_index2)
 
-    return Individual(window_index_child, start_time1)
+    return Individual(window_index_child, start_time1, calculate_assignment=False)
 
 
 def selection(populations: list[Individual], fitness: np.ndarray[float]) \
