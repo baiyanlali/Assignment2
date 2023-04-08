@@ -86,9 +86,15 @@ def crossover(p1: Individual, p2: Individual) -> Individual:
 
         return ret
 
-    window_index_child = crossover_simple_recombination(window_index1, window_index2)
+    def simple_arithmetic(parent1, parent2, alpha) -> np.ndarray:
+        ret = parent1 * alpha + parent2 * (1-alpha)
+        np.sort(ret)
+        return ret
 
-    return Individual(window_index_child, start_time1, calculate_assignment=False)
+    window_index_child = crossover_simple_recombination(window_index1, window_index2)
+    start_time_child = simple_arithmetic(start_time1, start_time2, 0.3)
+
+    return Individual(window_index_child, start_time_child, calculate_assignment=False)
 
 
 def selection(populations: list[Individual], fitness: np.ndarray[float]) \
@@ -118,8 +124,15 @@ def mutate(pop: Individual) -> Individual:
         # print(f"\nOrigin: {x}\nFORNOW: {ret}")
         return gene
 
+    def mutate_gauss(start_time):
+        for i in range(len(start_time)):
+            if random.random() < MUTATION_RATE:
+                start_time += random.gauss()
+        np.sort(start_time)
+        return start_time
+
     new_active_window_index = mutateActiveWindowsIndex(pop.active_window_index)
-    new_start_time = np.copy(pop.start_time)
+    new_start_time = mutate_gauss(np.copy(pop.start_time))
     return Individual(new_active_window_index, new_start_time)
 
 
@@ -451,6 +464,7 @@ class myEA():
                 # Mutation
                 child = mutate(child)
                 # Local Search, skip for now
+
                 offspring.append(child)
             # TODO: solve asteroids problem
 
