@@ -2,6 +2,7 @@ from spoc_delivery_scheduling_evaluate_code import trappist_schedule
 import random
 import numpy as np
 import tqdm
+import bisect
 
 N_STATIONS = 12
 N_ASTEROIDS = 340
@@ -12,7 +13,7 @@ TIME_END = 80
 DAY_INTERVAL = 1
 ITERATION_TIMES = 100
 
-POPULATION_SIZE = 10
+POPULATION_SIZE = 30
 
 MUTATION_RATE = 0.2
 
@@ -152,10 +153,19 @@ class Asteroids:
 
 
 def find_index_in_window(reach_time: float, window: list[float]) -> int:
-    for i in range(len(window) // 2):
-        if window[2 * i] <= reach_time <= window[2 * i + 1]:
-            return i
-    return -1
+    # for i in range(len(window) // 2):
+    #     if window[2 * i] <= reach_time <= window[2 * i + 1]:
+    #         return i
+    # return -1
+
+    index = bisect.bisect_left(window, reach_time)
+    if index % 2 == 1:
+        # in active window
+        return index//2
+    else:
+        return -1
+
+
 
 
 class myEA():
@@ -389,16 +399,16 @@ class myEA():
         return ts.fitness(solution)
 
     @staticmethod
-    def calcFitness(db, ts: trappist_schedule, populations: list[Individual]) -> np.ndarray[float]:
+    def calcFitness(asteroids, ts: trappist_schedule, populations: list[Individual]) -> np.ndarray[float]:
 
         fitnesses = np.zeros(POPULATION_SIZE)
+
         for i in range(POPULATION_SIZE):
             population = populations[i]
             active_windows_index, start_time = population.active_window_index, population.start_time
 
             windows = myEA.fill_window(start_time)
 
-            asteroids = myEA.decode_asteroids(db)
             assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_windows_index)
 
             fitness, _, _, _, _ = myEA.calcSingleFitness(ts, active_windows_index, windows, assignment_pair)
@@ -420,9 +430,9 @@ class myEA():
         # init populations
 
         populations: list[Individual] = myEA.init_population()
-
-        fitness = myEA.calcFitness(db, ts, populations)
         asteroids = myEA.decode_asteroids(db)
+
+        fitness = myEA.calcFitness(asteroids, ts, populations)
 
         best_fitness_individual = populations[np.argmin(fitness)]
         best_fitness = fitness[np.argmin(fitness)]
@@ -440,7 +450,7 @@ class myEA():
                 # Local Search, skip for now
                 offspring.append(child)
 
-            fitness = myEA.calcFitness(db, ts, offspring)
+            fitness = myEA.calcFitness(asteroids, ts, offspring)
 
             minfit = np.min(fitness)
 
