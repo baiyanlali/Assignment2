@@ -10,9 +10,9 @@ TIME_START = 0
 TIME_END = 80
 
 DAY_INTERVAL = 1
-ITERATION_TIMES = 10000
+ITERATION_TIMES = 100
 
-POPULATION_SIZE = 100
+POPULATION_SIZE = 10
 
 MUTATION_RATE = 0.2
 
@@ -446,7 +446,7 @@ class myEA():
             
             populations = offspring
         windows = myEA.fill_window(best_fitness_individual.start_time)
-        active_windows = myEA.window_encoding(active_windows, best_fitness_individual.active_window_index)
+        active_windows = myEA.window_encoding(windows, best_fitness_individual.active_window_index)
         assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, best_fitness_individual.active_window_index)
             
         solution = myEA.encode(active_windows, np.array(assignment_pair))
