@@ -16,43 +16,45 @@ POPULATION_SIZE = 10
 
 MUTATION_RATE = 0.2
 
+
 class Individual:
     def __init__(self, active_window_index, start_time) -> None:
         self.active_window_index: np.ndarray = active_window_index
         self.start_time: np.ndarray = start_time
 
-def crossover(parent1: Individual, parent2: Individual) -> Individual:
-    window_index1, window_index2 = parent1.active_window_index, parent2.active_window_index
-    start_time1, start_time2 = parent1.start_time, parent2.start_time
-    
+
+def crossover(p1: Individual, p2: Individual) -> Individual:
+    window_index1, window_index2 = p1.active_window_index, p2.active_window_index
+    start_time1, start_time2 = p1.start_time, p2.start_time
+
     def crossover_simple_recombination(parent1, parent2) -> np.ndarray:
         edgemap: dict[int, set[int]] = {}
         plen = len(parent1)
         for i in range(plen):
             edgemap[i] = set()
-            
+
         for i in range(plen):
             curr_node = parent1[i]
-            edgemap[curr_node].add(parent1[(i-1)%plen])
-            edgemap[curr_node].add(parent1[(i+1)%plen])
-        
+            edgemap[curr_node].add(parent1[(i - 1) % plen])
+            edgemap[curr_node].add(parent1[(i + 1) % plen])
+
         for i in range(plen):
             curr_node = parent2[i]
-            edgemap[curr_node].add(parent2[(i-1)%plen])
-            edgemap[curr_node].add(parent2[(i+1)%plen])
-            
+            edgemap[curr_node].add(parent2[(i - 1) % plen])
+            edgemap[curr_node].add(parent2[(i + 1) % plen])
+
         for i in range(plen):
             edgemap[i] = list(edgemap[i])
-            
+
         ret = np.zeros(plen, dtype=np.int32)
-        
+
         visited = []
-        
+
         curr_decision = random.randint(0, plen - 1)
         ret[0] = curr_decision
-        
+
         visited.append(curr_decision)
-        
+
         for i in range(plen - 1):
             min_decision = plen + 1
             min_entries = plen + 1
@@ -69,44 +71,48 @@ def crossover(parent1: Individual, parent2: Individual) -> Individual:
                         min_decision = j
                         break
             curr_decision = min_decision
-            ret[i+1] = curr_decision
+            ret[i + 1] = curr_decision
             visited.append(curr_decision)
-        
+
         return ret
 
     window_index_child = crossover_simple_recombination(window_index1, window_index2)
-    
+
     return Individual(window_index_child, np.copy(start_time1))
 
+
 def selection(populations: list[Individual], fitness: np.ndarray[float]) \
-    -> list[Individual, Individual]:
-    def roulette(populations: list[Individual], fitness: np.ndarray[float]) \
         -> list[Individual, Individual]:
-        fitness = fitness - 1
-        prob = fitness / fitness.sum()
-        parents = random.choices(populations, prob, k = 2)
+    def roulette(populations: list[Individual], f: np.ndarray[float]) \
+            -> list[Individual, Individual]:
+        # avoid 0
+        f = f - 1
+        prob = f / f.sum()
+        parents = random.choices(populations, prob, k=2)
         return parents
-    
+
     return roulette(populations, fitness)
 
-def mutate(pop: Individual) -> Individual:
 
+def mutate(pop: Individual) -> Individual:
     def mutateActiveWindowsIndex(x: np.ndarray):
         def swap(xx: np.ndarray):
             ret = xx
             i = random.choices(range(len(ret)), k=2)
             ret[i[0]], ret[i[1]] = ret[i[1]], ret[i[0]]
             return ret
-        ret = x
+
+        gene = x
         if random.random() < MUTATION_RATE:
-            ret = swap(ret)
+            gene = swap(gene)
         # print(f"\nOrigin: {x}\nFORNOW: {ret}")
-        return ret
-    
+        return gene
+
     new_active_window_index = mutateActiveWindowsIndex(pop.active_window_index)
     new_start_time = np.copy(pop.start_time)
     return Individual(new_active_window_index, new_start_time)
-    
+
+
 # TODO: Design and implement your EA
 
 class Opportunity:
@@ -121,7 +127,6 @@ class Opportunity:
 
     def __repr__(self):
         return f"\t\tReach Time: {self.reachTime}\n"
-
 
 
 class Station:
@@ -144,7 +149,6 @@ class Asteroids:
 
     def __repr__(self):
         return f"Asteroid: {self.stations}\n"
-
 
 
 def find_index_in_window(reach_time: float, window: list[float]) -> int:
@@ -201,17 +205,18 @@ class myEA():
         @return window array: [start, end, start, end, ...]
         @param start_window: the start time of current window
         """
-        
+
         window = np.zeros(2 * N_STATIONS)
-        
+
         for i in range(N_STATIONS - 1):
-            window[2*i] = start_window[i]
-            window[2*i+1] = max(start_window[i+1] - DAY_INTERVAL * 1.05, start_window[i]) # Make sure no collision happened
+            window[2 * i] = start_window[i]
+            window[2 * i + 1] = max(start_window[i + 1] - DAY_INTERVAL * 1.05,
+                                    start_window[i])  # Make sure no collision happened
         window[-2] = start_window[-1]
         window[-1] = TIME_END
-        
+
         return window
-        
+
     @staticmethod
     def window_encoding(window: list, index: np.ndarray) -> np.ndarray:
         ret = np.zeros(2 * N_STATIONS)
@@ -356,50 +361,50 @@ class myEA():
             i = random.choices(range(len(ret)), k=2)
             ret[i[0]], ret[i[1]] = ret[i[1]], ret[i[0]]
             return ret
+
         ret = swap(x)
         # print(f"\nOrigin: {x}\nFORNOW: {ret}")
         return ret
-    
+
     @staticmethod
-    def init_population()->list[Individual]:
-        
+    def init_population() -> list[Individual]:
+
         populations = []
-        
+
         for i in range(POPULATION_SIZE):
             active_windows_index = np.arange(N_STATIONS)
             np.random.shuffle(active_windows_index)
-            
+
             start_time = np.random.rand(N_STATIONS) * (TIME_END - TIME_START)
             start_time.sort()
-            
+
             populations.append(Individual(active_windows_index, start_time))
-        
+
         return populations
-    
+
     @staticmethod
     def calcSingleFitness(ts, active_windows_index, windows, assignment_pair):
         active_windows = myEA.window_encoding(windows, active_windows_index)
         solution = myEA.encode(active_windows, np.array(assignment_pair))
         return ts.fitness(solution)
-    
-    @staticmethod
-    def calcFitness(db, ts:trappist_schedule, populations: list[Individual])->np.ndarray[float]:
-            
-            fitnesses = np.zeros(POPULATION_SIZE)
-            for i in range(POPULATION_SIZE):
-                population = populations[i]
-                active_windows_index, start_time = population.active_window_index, population.start_time
-            
-                windows = myEA.fill_window(start_time)
-                
-                asteroids = myEA.decode_asteroids(db)
-                assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_windows_index)
-                
-                fitness, _, _, _, _ = myEA.calcSingleFitness(ts, active_windows_index, windows, assignment_pair)
-                fitnesses[i] = fitness
-            return fitnesses
 
-    
+    @staticmethod
+    def calcFitness(db, ts: trappist_schedule, populations: list[Individual]) -> np.ndarray[float]:
+
+        fitnesses = np.zeros(POPULATION_SIZE)
+        for i in range(POPULATION_SIZE):
+            population = populations[i]
+            active_windows_index, start_time = population.active_window_index, population.start_time
+
+            windows = myEA.fill_window(start_time)
+
+            asteroids = myEA.decode_asteroids(db)
+            assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_windows_index)
+
+            fitness, _, _, _, _ = myEA.calcSingleFitness(ts, active_windows_index, windows, assignment_pair)
+            fitnesses[i] = fitness
+        return fitnesses
+
     @staticmethod
     def main2():
         """
@@ -411,20 +416,19 @@ class myEA():
         ts: trappist_schedule = trappist_schedule()
 
         db = ts.db
-        
+
         # init populations
-        
+
         populations: list[Individual] = myEA.init_population()
-        
+
         fitness = myEA.calcFitness(db, ts, populations)
         asteroids = myEA.decode_asteroids(db)
-        
+
         best_fitness_individual = populations[np.argmin(fitness)]
         best_fitness = fitness[np.argmin(fitness)]
-        
 
         for it in tqdm.tqdm(range(ITERATION_TIMES)):
-            
+
             offspring = []
             for i in range(POPULATION_SIZE):
                 # Selection
@@ -435,20 +439,21 @@ class myEA():
                 child = mutate(child)
                 # Local Search, skip for now
                 offspring.append(child)
-            
+
             fitness = myEA.calcFitness(db, ts, offspring)
-            
+
             minfit = np.min(fitness)
-            
+
             if minfit < best_fitness:
                 best_fitness = minfit
                 best_fitness_individual = offspring[np.argmin(fitness)]
-            
+
             populations = offspring
         windows = myEA.fill_window(best_fitness_individual.start_time)
         active_windows = myEA.window_encoding(windows, best_fitness_individual.active_window_index)
-        assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, best_fitness_individual.active_window_index)
-            
+        assignment_pair = myEA.random_asteroids_assignment(asteroids, windows,
+                                                           best_fitness_individual.active_window_index)
+
         solution = myEA.encode(active_windows, np.array(assignment_pair))
 
         return solution
@@ -472,20 +477,17 @@ class myEA():
         best_fitness = 1
 
         best_solution = None
-        
+
         db = ts.db
         asteroids = myEA.decode_asteroids(db)
-        
-    
-        for it in tqdm.tqdm(range(ITERATION_TIMES)):
 
+        for it in tqdm.tqdm(range(ITERATION_TIMES)):
 
             active_windows_index = myEA.mutateActiveWindowsIndex(active_windows_index)
 
             windows = myEA.uniform_window()
 
             active_windows = myEA.window_encoding(windows, active_windows_index)
-
 
             # assignment_pair = myEA.random_asteroids_assignment(asteroids, active_windows, active_windows_index)
             assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_windows_index)
@@ -500,7 +502,6 @@ class myEA():
                 best_solution = solution
 
         return best_solution
-
 
 
 if __name__ == "__main__":
