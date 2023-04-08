@@ -100,6 +100,17 @@ class myEA():
         return uniform_window
 
     @staticmethod
+    def fill_window(start_window: list) -> list:
+        """
+        @return end_window
+        @param start_window: the start time of current window
+        """
+        
+
+
+
+
+    @staticmethod
     def window_encoding(window: list, index: np.ndarray) -> np.ndarray:
         ret = np.zeros(2 * N_STATIONS)
         for i in range(N_STATIONS):
@@ -196,29 +207,56 @@ class myEA():
 
         assignments = []
 
-        station_mass = np.zeros((N_STATIONS, 3))
+        station_mass = np.zeros((N_STATIONS + 1, 3))
+
+        station_mass[0] = [1e7, 1e7, 1e7]  # ignore index 0
 
         count = 0
 
         for i in available_assignments:  # i-th asteroids
-            assignment: list[list[int, int]] = available_assignments[i]
+            assignment: list[list[int, int]] = available_assignments[i]  # [[station, oppo], [station, oppo], ... ]
             if len(assignment) == 0:
                 assignments.append([i, 0, 0])
                 count = count + 1
+            elif len(assignment) == 1:
+                station, oppo = random.choice(assignment)
+                assignments.append([i, station, oppo])
+                ooo = asteroids[i].stations[station].opportunities[oppo]
+                station_mass[station] += [ooo.massA, ooo.massB, ooo.massC]
             else:
-                # find the min value of 
-                
-        # print(f"Count: {count}")
+                # find the min value and index of station_mass
+                # then if a new oppo added, then the result should be the best
+
+                min_mass = np.min(station_mass)
+                min_mass_station = assignment[0][0]
+                min_mass_oppo = assignment[0][1]
+                for station, oppo in assignment:
+                    curr_mass = np.copy(station_mass)
+
+                    ooo = asteroids[i].stations[station].opportunities[oppo]
+                    curr_mass[station] += [ooo.massA, ooo.massB, ooo.massC]
+
+                    curr_min_mass = np.min(curr_mass)
+                    if curr_min_mass < min_mass:
+                        min_mass_station = station_mass
+                        min_mass = curr_min_mass
+
+                assignments.append([i, min_mass_station, min_mass_oppo])
+                ooo = asteroids[i].stations[min_mass_station].opportunities[min_mass_oppo]
+                station_mass[min_mass_station] += [ooo.massA, ooo.massB, ooo.massC]
+
         return assignments
 
     @staticmethod
     def mutateActiveWindowsIndex(x: np.ndarray):
         def swap(xx: np.ndarray):
-            i = random.choices(range(len(xx)), k=2)
-            xx[i[0]], xx[i[1]] = xx[i[1]], xx[i[0]]
-            return xx
-
-        return swap(x)
+            ret = np.copy(xx)
+            i = random.choices(range(len(ret)), k=2)
+            ret[i[0]], ret[i[1]] = ret[i[1]], ret[i[0]]
+            return ret
+        ret = swap(x)
+        print(f"\nOrigin: {x}\nFORNOW: {ret}")
+        return ret
 
     @staticmethod
     def main():
@@ -236,7 +274,7 @@ class myEA():
 
         np.random.shuffle(active_windows_index)
 
-        best_fitness = 0
+        best_fitness = 1
 
         best_solution = None
 
