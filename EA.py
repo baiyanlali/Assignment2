@@ -272,22 +272,28 @@ class myEA():
         """
         availableAssignments: dict[int, list[list[int, int]]] = {}
 
+        window_index_reverse: dict = {window_index[i]: i for i in range(len(window_index))}
+
         for i in asteroids:
             availableAssignments[i] = []
             asteroid = asteroids[i]
             for j in asteroid.stations:
                 station = asteroid.stations[j]
-                
+                win_idx = window_index_reverse[j-1]
+                start, end = window[win_idx * 2], window[win_idx * 2 + 1]
                 for k in station.opportunities:
                     oppo = station.opportunities[k]
-                    reach_time = oppo.reachTime
-                    index = find_index_in_window(reach_time, window)
-                    if index == -1:  # if no suitable station found...
-                        continue
-                    # 这里必须保证index是从1开始
-                    if window_index[index] + 1 != j:  # current suitable station not suitable for opportunity station
-                        continue
-                    availableAssignments[i].append([j, k])
+
+                    if start <= oppo.reachTime <= end:
+                        availableAssignments[i].append([j, k])
+                        pass
+                    # index = find_index_in_window(reach_time, window)
+                    # if index == -1:  # if no suitable station found...
+                    #     continue
+                    # # 这里必须保证index是从1开始
+                    # if window_index[index] + 1 != j:  # current suitable station not suitable for opportunity station
+                    #     continue
+                    # availableAssignments[i].append([j, k])
         return availableAssignments
 
     @staticmethod
