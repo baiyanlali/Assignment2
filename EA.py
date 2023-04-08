@@ -17,12 +17,19 @@ POPULATION_SIZE = 100
 
 MUTATION_RATE = 0.2
 
+asteroids = {}
+
 
 class Individual:
-    def __init__(self, active_window_index, start_time, asteroids_arrangement) -> None:
+    def __init__(self, active_window_index, start_time) -> None:
         self.active_window_index: np.ndarray = np.copy(active_window_index)
         self.start_time: np.ndarray = np.copy(start_time)
-        # self.asteroids_arrangement: list =
+        windows = myEA.fill_window(start_time)
+        self.assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_window_index)
+        pass
+
+    def __repr__(self):
+        return f"{self.start_time}; {self.active_window_index}"
 
 
 def crossover(p1: Individual, p2: Individual) -> Individual:
@@ -80,7 +87,7 @@ def crossover(p1: Individual, p2: Individual) -> Individual:
 
     window_index_child = crossover_simple_recombination(window_index1, window_index2)
 
-    return Individual(window_index_child, np.copy(start_time1))
+    return Individual(window_index_child, start_time1)
 
 
 def selection(populations: list[Individual], fitness: np.ndarray[float]) \
@@ -376,7 +383,7 @@ class myEA():
         return ts.fitness(solution)
 
     @staticmethod
-    def calcFitness(asteroids, ts: trappist_schedule, populations: list[Individual]) -> np.ndarray[float]:
+    def calcFitness(ts: trappist_schedule, populations: list[Individual]) -> np.ndarray[float]:
 
         fitnesses = np.zeros(POPULATION_SIZE)
 
@@ -386,7 +393,8 @@ class myEA():
 
             windows = myEA.fill_window(start_time)
 
-            assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_windows_index)
+            # assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_windows_index)
+            assignment_pair = population.assignment_pair
 
             fitness, _, _, _, _ = myEA.calcSingleFitness(ts, active_windows_index, windows, assignment_pair)
             fitnesses[i] = fitness
@@ -400,12 +408,10 @@ class myEA():
         return ts.fitness(solution)
 
     @staticmethod
-    def calcSingleFitnessDebug2(ts, asteroids, individual: Individual):
+    def calcSingleFitnessDebug2(ts, individual: Individual):
         windows = myEA.fill_window(individual.start_time)
         active_windows = myEA.window_encoding(windows, individual.active_window_index)
-
-        assignment_pair = myEA.random_asteroids_assignment(asteroids, windows,
-                                                           individual.active_window_index)
+        assignment_pair = individual.assignment_pair
         solution = myEA.encode(active_windows, np.array(assignment_pair))
         return ts.fitness(solution)
 
@@ -423,10 +429,12 @@ class myEA():
 
         # init populations
 
-        populations: list[Individual] = myEA.init_population()
+        global asteroids
         asteroids = myEA.decode_asteroids(db)
 
-        fitness = myEA.calcFitness(asteroids, ts, populations)
+        populations: list[Individual] = myEA.init_population()
+
+        fitness = myEA.calcFitness(ts, populations)
 
         best_fitness_individual = populations[np.argmin(fitness)]
         best_fitness = fitness[np.argmin(fitness)]
@@ -445,8 +453,7 @@ class myEA():
                 offspring.append(child)
             # TODO: solve asteroids problem
 
-
-            fitness = myEA.calcFitness(asteroids, ts, offspring)
+            fitness = myEA.calcFitness(ts, offspring)
 
             minfit = np.min(fitness)
 
@@ -454,11 +461,19 @@ class myEA():
                 best_fitness = minfit
                 best_fitness_individual = offspring[np.argmin(fitness)]
 
+                print(f"Best fitness: {best_fitness}")
+
+                windows = myEA.fill_window(best_fitness_individual.start_time)
+                active_windows = myEA.window_encoding(windows, best_fitness_individual.active_window_index)
+                assignment_pair = best_fitness_individual.assignment_pair
+
+                solution = myEA.encode(active_windows, np.array(assignment_pair))
+                print(ts.fitness(solution))
+
             populations = offspring
         windows = myEA.fill_window(best_fitness_individual.start_time)
         active_windows = myEA.window_encoding(windows, best_fitness_individual.active_window_index)
-        assignment_pair = myEA.random_asteroids_assignment(asteroids, windows,
-                                                           best_fitness_individual.active_window_index)
+        assignment_pair = best_fitness_individual.assignment_pair
 
         solution = myEA.encode(active_windows, np.array(assignment_pair))
 
