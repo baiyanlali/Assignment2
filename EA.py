@@ -13,15 +13,16 @@ TIME_END = 80
 DAY_INTERVAL = 1
 ITERATION_TIMES = 100
 
-POPULATION_SIZE = 30
+POPULATION_SIZE = 100
 
 MUTATION_RATE = 0.2
 
 
 class Individual:
-    def __init__(self, active_window_index, start_time) -> None:
-        self.active_window_index: np.ndarray = active_window_index
-        self.start_time: np.ndarray = start_time
+    def __init__(self, active_window_index, start_time, asteroids_arrangement) -> None:
+        self.active_window_index: np.ndarray = np.copy(active_window_index)
+        self.start_time: np.ndarray = np.copy(start_time)
+        # self.asteroids_arrangement: list =
 
 
 def crossover(p1: Individual, p2: Individual) -> Individual:
@@ -153,21 +154,9 @@ class Asteroids:
 
 
 def find_index_in_window(reach_time: float, window: list[float]) -> int:
-    # for i in range(len(window) // 2):
-    #     if window[2 * i] <= reach_time <= window[2 * i + 1]:
-    #         return i
-    # return -1
-
     index = bisect.bisect_left(window, reach_time)
 
-    return index//2 if index % 2 == 1 else -1
-
-    # if index % 2 == 1:
-    #     # in active window
-    #     return index//2
-    # return -1
-
-
+    return index // 2 if index % 2 == 1 else -1
 
 
 class myEA():
@@ -175,30 +164,10 @@ class myEA():
         pass
 
     @staticmethod
-    def calculate_window(window_time: np.ndarray[float]) -> np.ndarray[float]:
-        # window_time: [T 1i, T 1f, ..., T 12i, T 12f]
-        window_start = window_time[0:2 * N_STATIONS:2]
-        window_end = window_time[1:2 * N_STATIONS:2]
-
-        index = np.argsort(window_start)
-
-        window_start[index[0]] = TIME_START  # set first window to 0
-
-        for i in range(0, N_STATIONS - 1):
-            window_end[index[i]] = window_start[index[i + 1]] + DAY_INTERVAL
-
-        window_end[index[N_STATIONS - 1]] = TIME_END
-
-        result = []
-
-        for i in range(0, N_STATIONS):
-            result.append(window_start[i])
-            result.append(window_end[i])
-
-        return np.array(result)
-
-    @staticmethod
     def uniform_window() -> list:
+        """
+        @return: A uniformed window for testing
+        """
         total_time = TIME_END - TIME_START - (N_STATIONS - 1) * DAY_INTERVAL
         time_each = total_time / N_STATIONS  # time of each station
 
@@ -279,7 +248,7 @@ class myEA():
             asteroid = asteroids[i]
             for j in asteroid.stations:
                 station = asteroid.stations[j]
-                win_idx = window_index_reverse[j-1]
+                win_idx = window_index_reverse[j - 1]
                 start, end = window[win_idx * 2], window[win_idx * 2 + 1]
                 for k in station.opportunities:
                     oppo = station.opportunities[k]
@@ -424,13 +393,30 @@ class myEA():
         return fitnesses
 
     @staticmethod
+    def calcSingleFitnessDebug(ts, active_windows_index, start_time, assignment_pair):
+        windows = myEA.fill_window(start_time)
+        active_windows = myEA.window_encoding(windows, active_windows_index)
+        solution = myEA.encode(active_windows, np.array(assignment_pair))
+        return ts.fitness(solution)
+
+    @staticmethod
+    def calcSingleFitnessDebug2(ts, asteroids, individual: Individual):
+        windows = myEA.fill_window(individual.start_time)
+        active_windows = myEA.window_encoding(windows, individual.active_window_index)
+
+        assignment_pair = myEA.random_asteroids_assignment(asteroids, windows,
+                                                           individual.active_window_index)
+        solution = myEA.encode(active_windows, np.array(assignment_pair))
+        return ts.fitness(solution)
+
+    @staticmethod
     def main2():
         """
         @descrption: This function is the invocation interface of your EA for testEA.py.
                      Thus you must remain and complete it.
         @return your_decision_vector: the decision vector found by your EA, 1044 dimensions
         """
-
+        # random.seed(5)
         ts: trappist_schedule = trappist_schedule()
 
         db = ts.db
@@ -446,7 +432,7 @@ class myEA():
         best_fitness = fitness[np.argmin(fitness)]
 
         for it in tqdm.tqdm(range(ITERATION_TIMES)):
-
+            # solve window problem
             offspring = []
             for i in range(POPULATION_SIZE):
                 # Selection
@@ -457,6 +443,8 @@ class myEA():
                 child = mutate(child)
                 # Local Search, skip for now
                 offspring.append(child)
+            # TODO: solve asteroids problem
+
 
             fitness = myEA.calcFitness(asteroids, ts, offspring)
 
@@ -474,6 +462,7 @@ class myEA():
 
         solution = myEA.encode(active_windows, np.array(assignment_pair))
 
+        print(f"Best fitness: {best_fitness}")
         return solution
 
     @staticmethod
