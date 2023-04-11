@@ -1,3 +1,7 @@
+import math
+
+import numpy.random
+
 from spoc_delivery_scheduling_evaluate_code import trappist_schedule
 import random
 import numpy as np
@@ -19,14 +23,31 @@ MUTATION_RATE = 0.2
 
 asteroids = {}
 
+ts: trappist_schedule = trappist_schedule()
+
 
 class Individual:
-    def __init__(self, active_window_index, start_time, calculate_assignment=True) -> None:
+    def __init__(self, active_window_index, start_time, calculate_assignment=True, ts=None, eit=None) -> None:
         self.active_window_index: np.ndarray = np.copy(active_window_index)
         self.start_time: np.ndarray = np.copy(start_time)
+        if eit is None:
+            self.eit: np.ndarray = np.ones(start_time.size)  # used for mutation of start_time
+        else:
+            self.eit = np.copy(eit)
         if calculate_assignment:
             windows = myEA.fill_window(start_time)
             self.assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_window_index)
+
+            # min_fitness, _, _, _, _ = myEA.calcSingleFitnessDebug2(ts, self)
+            # min_assignment_pair = self.assignment_pair
+            # if ts is not None:
+            #     for i in range(3):
+            #         self.assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_window_index)
+            #         fitness, _, _, _, _ = myEA.calcSingleFitnessDebug2(ts, self)
+            #         if fitness < min_fitness:
+            #             min_fitness = fitness
+            #             min_assignment_pair = self.assignment_pair
+            # self.assignment_pair = min_assignment_pair
         pass
 
     def __repr__(self):
@@ -87,7 +108,7 @@ def crossover(p1: Individual, p2: Individual) -> Individual:
         return ret
 
     def simple_arithmetic(parent1, parent2, alpha) -> np.ndarray:
-        ret = parent1 * alpha + parent2 * (1-alpha)
+        ret = parent1 * alpha + parent2 * (1 - alpha)
         np.sort(ret)
         return ret
 
@@ -101,12 +122,15 @@ def selection(populations: list[Individual], fitness: np.ndarray[float]) \
         -> list[Individual, Individual]:
     def roulette(populations: list[Individual], f: np.ndarray[float]) \
             -> list[Individual, Individual]:
-        # avoid 0
-        f = f - 1
+        f = f
         prob = f / f.sum()
         parents = random.choices(populations, prob, k=2)
         return parents
 
+    # def tournament(populations: list[Individual], f: np.ndarray[float], k=10) -> list[Individual, Individual]:
+    #     battlers = random.sample(populations, k)
+    #     np.sort(battlers, )
+    #
     return roulette(populations, fitness)
 
 
@@ -118,22 +142,37 @@ def mutate(pop: Individual) -> Individual:
             ret[i[0]], ret[i[1]] = ret[i[1]], ret[i[0]]
             return ret
 
+        def inverse(xx: np.ndarray):
+            i = random.choices(range(len(xx)), k=2)
+            maxx = max(i[0], i[1])
+            minx = min(i[0], i[1])
+            xx[minx + 1: maxx + 1] = xx[maxx: minx: -1]
+            return xx
+
         gene = x
         if random.random() < MUTATION_RATE:
-            gene = swap(gene)
+            # gene = swap(gene)
+            gene = inverse(gene)
         # print(f"\nOrigin: {x}\nFORNOW: {ret}")
         return gene
 
-    def mutate_gauss(start_time):
-        for i in range(len(start_time)):
-            if random.random() < MUTATION_RATE:
-                start_time += random.gauss()
-        np.sort(start_time)
-        return start_time
+    def mutate_gauss(start_time: np.ndarray, eit: np.ndarray):
+        if random.random() < MUTATION_RATE:
+            start_time += eit * numpy.random.standard_cauchy(start_time.size)
+            np.clip(start_time, TIME_START, TIME_END)
+            # for i in range(len(start_time)):
+            #     if random.random() < MUTATION_RATE:
+            #         start_time += random.gauss()
+            np.sort(start_time)
+            n = len(start_time)
+            eit = eit * np.exp(
+                1 / np.sqrt(2 * np.sqrt(n)) * numpy.random.standard_cauchy(start_time.size) + 1 / np.sqrt(
+                    2 * n) * numpy.random.standard_cauchy(start_time.size))
+        return start_time, eit
 
     new_active_window_index = mutateActiveWindowsIndex(pop.active_window_index)
-    new_start_time = mutate_gauss(np.copy(pop.start_time))
-    return Individual(new_active_window_index, new_start_time)
+    new_start_time, eit = mutate_gauss(np.copy(pop.start_time), pop.eit)
+    return Individual(new_active_window_index, new_start_time, ts=ts, eit=eit)
 
 
 # TODO: Design and implement your EA
@@ -212,7 +251,7 @@ class myEA():
 
         for i in range(N_STATIONS - 1):
             window[2 * i] = start_window[i]
-            window[2 * i + 1] = max(start_window[i + 1] - DAY_INTERVAL * 1.05,
+            window[2 * i + 1] = max(start_window[i + 1] - DAY_INTERVAL * 1.0001,
                                     start_window[i])  # Make sure no collision happened
         window[-2] = start_window[-1]
         window[-1] = TIME_END
@@ -220,7 +259,7 @@ class myEA():
         return window
 
     @staticmethod
-    def window_encoding(window: list, index: np.ndarray) -> np.ndarray:
+    def window_encoding(window: list | np.ndarray, index: np.ndarray) -> np.ndarray:
         ret = np.zeros(2 * N_STATIONS)
         for i in range(N_STATIONS):
             ret[index[i] * 2] = window[2 * i]
@@ -375,18 +414,35 @@ class myEA():
         return ret
 
     @staticmethod
-    def init_population() -> list[Individual]:
+    def init_population(ts) -> list[Individual]:
 
         populations = []
 
-        for i in range(POPULATION_SIZE):
+        print("Init population")
+
+        for i in tqdm.tqdm(range(POPULATION_SIZE)):
             active_windows_index = np.arange(N_STATIONS)
             np.random.shuffle(active_windows_index)
 
             start_time = np.random.rand(N_STATIONS) * (TIME_END - TIME_START)
             start_time.sort()
 
-            populations.append(Individual(active_windows_index, start_time))
+            individual = Individual(active_windows_index, start_time, ts=ts)
+
+            fitness, _, _, _, _ = myEA.calcSingleFitnessDebug2(ts, individual)
+
+            while fitness == 0:
+                active_windows_index = np.arange(N_STATIONS)
+                np.random.shuffle(active_windows_index)
+
+                start_time = np.random.rand(N_STATIONS) * (TIME_END - TIME_START)
+                start_time.sort()
+
+                individual = Individual(active_windows_index, start_time, ts=ts)
+                fitness, _, _, _, _ = myEA.calcSingleFitnessDebug2(ts, individual)
+
+            # populations.append(Individual(active_windows_index, start_time))
+            populations.append(individual)
 
         return populations
 
@@ -437,7 +493,6 @@ class myEA():
         @return your_decision_vector: the decision vector found by your EA, 1044 dimensions
         """
         # random.seed(5)
-        ts: trappist_schedule = trappist_schedule()
 
         db = ts.db
 
@@ -446,7 +501,7 @@ class myEA():
         global asteroids
         asteroids = myEA.decode_asteroids(db)
 
-        populations: list[Individual] = myEA.init_population()
+        populations: list[Individual] = myEA.init_population(ts)
 
         fitness = myEA.calcFitness(ts, populations)
 
