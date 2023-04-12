@@ -38,16 +38,16 @@ class Individual:
             windows = myEA.fill_window(start_time)
             self.assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_window_index)
 
-            # min_fitness, _, _, _, _ = myEA.calcSingleFitnessDebug2(ts, self)
-            # min_assignment_pair = self.assignment_pair
-            # if ts is not None:
-            #     for i in range(3):
-            #         self.assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_window_index)
-            #         fitness, _, _, _, _ = myEA.calcSingleFitnessDebug2(ts, self)
-            #         if fitness < min_fitness:
-            #             min_fitness = fitness
-            #             min_assignment_pair = self.assignment_pair
-            # self.assignment_pair = min_assignment_pair
+            min_fitness, _, _, _, _ = myEA.calcSingleFitnessOfIndividual(ts, self)
+            min_assignment_pair = self.assignment_pair
+            if ts is not None:
+                for i in range(3):
+                    self.assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_window_index)
+                    fitness, _, _, _, _ = myEA.calcSingleFitnessOfIndividual(ts, self)
+                    if fitness < min_fitness:
+                        min_fitness = fitness
+                        min_assignment_pair = self.assignment_pair
+            self.assignment_pair = min_assignment_pair
         pass
 
     def __repr__(self):
@@ -59,7 +59,7 @@ def crossover(p1: Individual, p2: Individual) -> Individual:
     start_time1, start_time2 = p1.start_time, p2.start_time
 
     def crossover_simple_recombination(parent1, parent2) -> np.ndarray:
-        edgemap: dict[int, set[int]] = {}
+        edgemap: dict[int, set[int] | list[int]] = {}
         plen = len(parent1)
         for i in range(plen):
             edgemap[i] = set()
@@ -173,6 +173,41 @@ def mutate(pop: Individual) -> Individual:
     new_active_window_index = mutateActiveWindowsIndex(pop.active_window_index)
     new_start_time, eit = mutate_gauss(np.copy(pop.start_time), pop.eit)
     return Individual(new_active_window_index, new_start_time, ts=ts, eit=eit)
+
+
+def local_search(offspring: list[Individual], fitness: list[float] | np.ndarray[float], k=5, search_time = 3) -> list[Individual]:
+    """
+    @description: return a local optimal value reference to current individual, only change the value of start_time
+    @k: search number of individuals
+    @search_time: for an offspring, how much times to search?
+    @return: local optimal for offspring
+    """
+
+    def gauss(start_time: np.ndarray[float]):
+        start_time[random.randint(0, start_time.size-1)] += random.gauss()
+        np.clip(start_time, TIME_START, TIME_END)
+        np.sort(start_time)
+        return start_time
+
+    individuals, fitness_sorted = zip(*sorted(zip(offspring, fitness), key=lambda a: a[1], reverse=False))
+
+    individuals = list(individuals)
+    top_k_individuals = individuals[:k]
+
+    for i in range(len(top_k_individuals)):
+        individual = top_k_individuals[i]
+        min_individual = fitness_sorted[i]
+        for it in range(search_time):
+            new_individual = Individual(individual.active_window_index, gauss(individual.start_time), ts=ts, calculate_assignment=True)
+            fit, _, _, _, _ = myEA.calcSingleFitnessOfIndividual(ts, new_individual)
+            if fit < min_individual:
+                individual = new_individual
+                min_individual = fit
+        top_k_individuals[i] = individual
+
+    individuals[:k] = top_k_individuals
+
+    return individuals
 
 
 # TODO: Design and implement your EA
@@ -326,7 +361,7 @@ class myEA():
         return availableAssignments
 
     @staticmethod
-    def random_asteroids_assignment(asteroids: dict[int, Asteroids], window: list[float],
+    def random_asteroids_assignment(asteroids: dict[int, Asteroids], window: list[float] | np.ndarray[float],
                                     window_index: np.ndarray[int]) -> \
             list[list[int, int, int]]:
         """
@@ -429,7 +464,7 @@ class myEA():
 
             individual = Individual(active_windows_index, start_time, ts=ts)
 
-            fitness, _, _, _, _ = myEA.calcSingleFitnessDebug2(ts, individual)
+            fitness, _, _, _, _ = myEA.calcSingleFitnessOfIndividual(ts, individual)
 
             while fitness == 0:
                 active_windows_index = np.arange(N_STATIONS)
@@ -439,7 +474,7 @@ class myEA():
                 start_time.sort()
 
                 individual = Individual(active_windows_index, start_time, ts=ts)
-                fitness, _, _, _, _ = myEA.calcSingleFitnessDebug2(ts, individual)
+                fitness, _, _, _, _ = myEA.calcSingleFitnessOfIndividual(ts, individual)
 
             # populations.append(Individual(active_windows_index, start_time))
             populations.append(individual)
@@ -478,7 +513,7 @@ class myEA():
         return ts.fitness(solution)
 
     @staticmethod
-    def calcSingleFitnessDebug2(ts, individual: Individual):
+    def calcSingleFitnessOfIndividual(ts, individual: Individual):
         windows = myEA.fill_window(individual.start_time)
         active_windows = myEA.window_encoding(windows, individual.active_window_index)
         assignment_pair = individual.assignment_pair
@@ -486,7 +521,7 @@ class myEA():
         return ts.fitness(solution)
 
     @staticmethod
-    def main2():
+    def main():
         """
         @descrption: This function is the invocation interface of your EA for testEA.py.
                      Thus you must remain and complete it.
@@ -518,11 +553,13 @@ class myEA():
                 child = crossover(parent1, parent2)
                 # Mutation
                 child = mutate(child)
-                # Local Search, skip for now
-
                 offspring.append(child)
             # TODO: solve asteroids problem
 
+            # Local Search, skip for now
+
+            fitness = myEA.calcFitness(ts, offspring)
+            offspring = local_search(offspring, fitness)
             fitness = myEA.calcFitness(ts, offspring)
 
             minfit = np.min(fitness)
@@ -551,7 +588,7 @@ class myEA():
         return solution
 
     @staticmethod
-    def main():
+    def main_old():
         """
         @descrption: This function is the invocation interface of your EA for testEA.py.
                      Thus you must remain and complete it.
@@ -598,7 +635,7 @@ class myEA():
 
 if __name__ == "__main__":
     udp = trappist_schedule()
-    your_decision_vector = myEA.main2()
+    your_decision_vector = myEA.main()
     # fitness, wrongly indexed asteroids, assignment violations
     # minimum time gap, violations of constraint among the allocated asteroids
     fitness_values = udp.fitness(your_decision_vector)
