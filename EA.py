@@ -365,17 +365,8 @@ class myEA():
                 start, end = window[win_idx * 2], window[win_idx * 2 + 1]
                 for k in station.opportunities:
                     oppo = station.opportunities[k]
-
                     if start <= oppo.reachTime <= end:
                         availableAssignments[i].append([j, k])
-                        pass
-                    # index = find_index_in_window(reach_time, window)
-                    # if index == -1:  # if no suitable station found...
-                    #     continue
-                    # # 这里必须保证index是从1开始
-                    # if window_index[index] + 1 != j:  # current suitable station not suitable for opportunity station
-                    #     continue
-                    # availableAssignments[i].append([j, k])
         return availableAssignments
 
     @staticmethod
