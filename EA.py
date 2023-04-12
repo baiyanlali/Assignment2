@@ -26,6 +26,8 @@ asteroids = {}
 ts: trappist_schedule = trappist_schedule()
 
 
+
+
 class Individual:
     def __init__(self, active_window_index, start_time, calculate_assignment=True, ts=None, eit=None) -> None:
         self.active_window_index: np.ndarray = np.copy(active_window_index)
@@ -33,25 +35,41 @@ class Individual:
         if eit is None:
             self.eit: np.ndarray = np.ones(start_time.size)  # used for mutation of start_time
         else:
-            self.eit = np.copy(eit)
+            self.eit: np.ndarray = np.copy(eit)
         if calculate_assignment:
             windows = myEA.fill_window(start_time)
             self.assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_window_index)
 
             min_fitness, _, _, _, _ = myEA.calcSingleFitnessOfIndividual(ts, self)
             min_assignment_pair = self.assignment_pair
-            if ts is not None:
-                for i in range(3):
-                    self.assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_window_index)
-                    fitness, _, _, _, _ = myEA.calcSingleFitnessOfIndividual(ts, self)
-                    if fitness < min_fitness:
-                        min_fitness = fitness
-                        min_assignment_pair = self.assignment_pair
-            self.assignment_pair = min_assignment_pair
+
+            assignments = [self.assignment_pair]
+            fitness = [min_fitness - 1]
+            for i in range(3):
+                ass = myEA.random_asteroids_assignment(asteroids, windows, active_window_index)
+                assignments.append(ass)
+                fit, _, _, _, _ = myEA.calcSingleFitness(ts, self.active_window_index, windows, ass)
+                fitness.append(fit - 1)
+            fitness = np.array(fitness)
+
+            prob = fitness / fitness.sum()
+            fin_assignment = random.choices(assignments, prob, k=1)
+            self.assignment_pair = fin_assignment[0]
+
+            # if ts is not None:
+            #     for i in range(3):
+            #         self.assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_window_index)
+            #         fitness, _, _, _, _ = myEA.calcSingleFitnessOfIndividual(ts, self)
+            #         if fitness < min_fitness:
+            #             min_fitness = fitness
+            #             min_assignment_pair = self.assignment_pair
+            # self.assignment_pair = min_assignment_pair
         pass
 
     def __repr__(self):
         return f"{self.start_time}; {self.active_window_index}"
+
+
 
 
 def crossover(p1: Individual, p2: Individual) -> Individual:
@@ -126,7 +144,6 @@ def selection(populations: list[Individual], fitness: np.ndarray[float]) \
         prob = f / f.sum()
         parents = random.choices(populations, prob, k=2)
         return parents
-
     # def tournament(populations: list[Individual], f: np.ndarray[float], k=10) -> list[Individual, Individual]:
     #     battlers = random.sample(populations, k)
     #     np.sort(battlers, )
@@ -158,7 +175,8 @@ def mutate(pop: Individual) -> Individual:
 
     def mutate_gauss(start_time: np.ndarray, eit: np.ndarray):
         if random.random() < MUTATION_RATE:
-            start_time += eit * numpy.random.standard_cauchy(start_time.size)
+            # start_time += eit * numpy.random.standard_cauchy(start_time.size)
+            start_time += numpy.random.standard_cauchy(start_time.size)
             np.clip(start_time, TIME_START, TIME_END)
             # for i in range(len(start_time)):
             #     if random.random() < MUTATION_RATE:
