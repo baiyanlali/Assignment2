@@ -45,7 +45,7 @@ class Individual:
 
             assignments = [self.assignment_pair]
             fitness = [min_fitness - 1]
-            for i in range(3):
+            for i in range(1):
                 ass = myEA.random_asteroids_assignment(asteroids, windows, active_window_index)
                 assignments.append(ass)
                 fit, _, _, _, _ = myEA.calcSingleFitness(ts, self.active_window_index, windows, ass)
@@ -183,9 +183,9 @@ def mutate(pop: Individual) -> Individual:
             #         start_time += random.gauss()
             np.sort(start_time)
             n = len(start_time)
-            eit = eit * np.exp(
-                1 / np.sqrt(2 * np.sqrt(n)) * numpy.random.standard_cauchy(start_time.size) + 1 / np.sqrt(
-                    2 * n) * numpy.random.standard_cauchy(start_time.size))
+            # eit = eit * np.exp(
+            #     1 / np.sqrt(2 * np.sqrt(n)) * numpy.random.standard_cauchy(start_time.size) + 1 / np.sqrt(
+            #         2 * n) * numpy.random.standard_cauchy(start_time.size))
         return start_time, eit
 
     new_active_window_index = mutateActiveWindowsIndex(pop.active_window_index)
