@@ -1,7 +1,7 @@
 import math
 
 import numpy.random
-
+import matplotlib
 from spoc_delivery_scheduling_evaluate_code import trappist_schedule
 import random
 import numpy as np
@@ -15,9 +15,9 @@ TIME_START = 0
 TIME_END = 80
 
 DAY_INTERVAL = 1
-ITERATION_TIMES = 100
+ITERATION_TIMES = 150
 
-POPULATION_SIZE = 100
+POPULATION_SIZE = 300
 
 MUTATION_RATE = 0.2
 
@@ -45,16 +45,16 @@ class Individual:
 
             assignments = [self.assignment_pair]
             fitness = [min_fitness - 1]
-            for i in range(3):
-                ass = myEA.random_asteroids_assignment(asteroids, windows, active_window_index)
-                assignments.append(ass)
-                fit, _, _, _, _ = myEA.calcSingleFitness(ts, self.active_window_index, windows, ass)
-                fitness.append(fit - 1)
-            fitness = np.array(fitness)
+            # for i in range(1):
+            #     ass = myEA.random_asteroids_assignment(asteroids, windows, active_window_index)
+            #     assignments.append(ass)
+            #     fit, _, _, _, _ = myEA.calcSingleFitness(ts, self.active_window_index, windows, ass)
+            #     fitness.append(fit - 1)
+            # fitness = np.array(fitness)
 
-            prob = fitness / fitness.sum()
-            fin_assignment = random.choices(assignments, prob, k=1)
-            self.assignment_pair = fin_assignment[0]
+            # prob = fitness / fitness.sum()
+            # fin_assignment = random.choices(assignments, prob, k=1)
+            # self.assignment_pair = fin_assignment[0]
 
             # if ts is not None:
             #     for i in range(3):
@@ -130,6 +130,7 @@ def crossover(p1: Individual, p2: Individual) -> Individual:
         np.sort(ret)
         return ret
 
+
     window_index_child = crossover_simple_recombination(window_index1, window_index2)
     start_time_child = simple_arithmetic(start_time1, start_time2, 0.3)
 
@@ -183,9 +184,9 @@ def mutate(pop: Individual) -> Individual:
             #         start_time += random.gauss()
             np.sort(start_time)
             n = len(start_time)
-            eit = eit * np.exp(
-                1 / np.sqrt(2 * np.sqrt(n)) * numpy.random.standard_cauchy(start_time.size) + 1 / np.sqrt(
-                    2 * n) * numpy.random.standard_cauchy(start_time.size))
+            # eit = eit * np.exp(
+            #     1 / np.sqrt(2 * np.sqrt(n)) * numpy.random.standard_cauchy(start_time.size) + 1 / np.sqrt(
+            #         2 * n) * numpy.random.standard_cauchy(start_time.size))
         return start_time, eit
 
     new_active_window_index = mutateActiveWindowsIndex(pop.active_window_index)
@@ -565,7 +566,7 @@ class myEA():
                 offspring.append(child)
             # TODO: solve asteroids problem
 
-            # Local Search, skip for now
+            # Local Search
 
             fitness = myEA.calcFitness(ts, offspring)
             offspring = local_search(offspring, fitness)
@@ -596,60 +597,35 @@ class myEA():
         print(f"Best fitness: {best_fitness}")
         return solution
 
-    @staticmethod
-    def main_old():
-        """
-        @descrption: This function is the invocation interface of your EA for testEA.py.
-                     Thus you must remain and complete it.
-        @return your_decision_vector: the decision vector found by your EA, 1044 dimensions
-        """
-
-        ts: trappist_schedule = trappist_schedule()
-
-        solution = []
-
-        active_windows_index = np.arange(N_STATIONS)
-
-        np.random.shuffle(active_windows_index)
-
-        best_fitness = 1
-
-        best_solution = None
-
-        db = ts.db
-        asteroids = myEA.decode_asteroids(db)
-
-        for it in tqdm.tqdm(range(ITERATION_TIMES)):
-
-            active_windows_index = myEA.mutateActiveWindowsIndex(active_windows_index)
-
-            windows = myEA.uniform_window()
-
-            active_windows = myEA.window_encoding(windows, active_windows_index)
-
-            # assignment_pair = myEA.random_asteroids_assignment(asteroids, active_windows, active_windows_index)
-            assignment_pair = myEA.random_asteroids_assignment(asteroids, windows, active_windows_index)
-            # assignment_pair = myEA.fill_min_asteroids_assignment(asteroids, windows, active_windows_index)
-
-            solution = myEA.encode(active_windows, np.array(assignment_pair))
-
-            fitness, _, _, _, _ = ts.fitness(solution)
-            # print(f"fitness: {fitness}")
-            if fitness < best_fitness:
-                best_fitness = fitness
-                best_solution = solution
-
-        return best_solution
-
 
 if __name__ == "__main__":
     udp = trappist_schedule()
-    your_decision_vector = myEA.main()
+
     # fitness, wrongly indexed asteroids, assignment violations
     # minimum time gap, violations of constraint among the allocated asteroids
-    fitness_values = udp.fitness(your_decision_vector)
+    f = []
 
-    print(fitness_values)
+    for i in range(1):
+        print(f"##########    Iteration {i}    ##########")
+        your_decision_vector = myEA.main()
+        fitness_values = udp.fitness(your_decision_vector)
+        print(fitness_values)
+        f.append(fitness_values)
+        udp.plot(your_decision_vector)
+
+    fff,_,_,_,_ = zip(*f)
+
+    fff = np.array(fff)
+
+    print(f"average: {fff.mean()}")
+
+
+
+    # f.append(fitness_values)
+
+    # f = np.ndarray(f)
+
+    # print(f.mean())
 
     # print(myEA.calculate_window(np.arange(0, 24)))
     # window = myEA.uniformWindow()
